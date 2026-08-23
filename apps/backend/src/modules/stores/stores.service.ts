@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
-export class AppService {
-  getStoreName(): { name: string } {
+export class StoresService {
+  get(): { name: string } {
     return { name: 'The Tech Library' };
   }
 }
