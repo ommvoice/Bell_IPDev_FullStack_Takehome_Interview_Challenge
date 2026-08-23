@@ -1,39 +1,60 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import App from "./App";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import App from './App';
+import { renderWithProviders } from './test/test-utils';
 
-describe("App", () => {
+function mockFetchResponses() {
+  globalThis.fetch = vi.fn((url: string) => {
+    if (url.includes('/stores/name')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ name: 'The Tech Library' }),
+      });
+    }
+    if (url.includes('/products')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([]),
+      });
+    }
+    if (url.includes('/wishlist')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([]),
+      });
+    }
+    return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+  }) as unknown as typeof fetch;
+}
+
+describe('App', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockFetchResponses();
   });
 
-  it("fetches and displays the store name in the app bar", async () => {
-    const mockResponse = { name: "The Tech Library" };
-
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockResponse),
-    }) as unknown as typeof fetch;
-
-    render(<App />);
+  it('fetches and displays the store name in the app bar', async () => {
+    renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText("The Tech Library")).toBeInTheDocument();
+      expect(screen.getByText('The Tech Library')).toBeInTheDocument();
     });
-
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "http://localhost:3005/api/store-name",
-    );
   });
 
-  it("renders the placeholder text", () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve({ name: "" }),
-    }) as unknown as typeof fetch;
+  it('switches between the Products and Wishlist views', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
 
-    render(<App />);
+    expect(await screen.findByLabelText('Search products by name')).toBeInTheDocument();
 
-    expect(
-      screen.getByText("Product Library will go here"),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Wishlist' }));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Search products by name')).not.toBeInTheDocument();
+    });
   });
 });
